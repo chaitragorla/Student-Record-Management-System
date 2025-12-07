@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SRMS — Student Record Management (HTML/CSS/JS)</title>
+  <style>
+    /* Simple, clean styling */
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --glass: rgba(255,255,255,0.6);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body { height:100%; margin:0; background:var(--bg); color:#0f172a }
+    .container { max-width:1100px; margin:28px auto; padding:20px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
+    h1 { margin:0; font-size:20px; }
+    .card { background:var(--card); padding:14px; border-radius:10px; box-shadow:0 6px 18px rgba(13,16,28,0.06); }
+    .controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .btn { padding:8px 12px; border-radius:8px; border:0; cursor:pointer; background:var(--accent); color:white; font-weight:600; }
+    .btn.ghost { background:transparent; color:var(--accent); border:1px solid rgba(37,99,235,0.12); }
+    .btn.danger { background:var(--danger); }
+    .btn.small { padding:6px 8px; font-size:13px; border-radius:6px; }
+    input[type="text"], input[type="email"], input[type="tel"], select { padding:8px 10px; border-radius:8px; border:1px solid #e6eef8; min-width:160px; }
+    .search { flex:1; display:flex; gap:8px; align-items:center; }
+    table { width:100%; border-collapse:collapse; margin-top:14px; font-size:14px; }
+    th, td { text-align:left; padding:10px 8px; border-bottom:1px solid #edf2f7; vertical-align:middle; }
+    th { color:var(--muted); font-weight:700; font-size:13px; }
+    .actions { display:flex; gap:6px; }
+    .muted { color:var(--muted); font-size:13px; }
+    .badge { padding:4px 8px; border-radius:999px; font-size:12px; }
+    .flex { display:flex; gap:8px; align-items:center; }
+    .right { margin-left:auto; }
+
+    /* Modal */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(2,6,23,0.45); display:none; align-items:center; justify-content:center; z-index:40; }
+    .modal { width:100%; max-width:720px; background:var(--card); padding:18px; border-radius:10px; box-shadow:0 10px 40px rgba(2,6,23,0.3); }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    /* responsive */
+    @media (max-width:880px) {
+      .grid-2 { grid-template-columns:1fr; }
+      .controls { flex-direction:column; align-items:stretch; }
+      .right { margin-left:0; }
+      input[type="text"] { min-width:0; width:100%; }
+    }
+
+    footer { margin-top:14px; color:var(--muted); font-size:13px; }
+    .small-note { font-size:13px; color:var(--muted); }
+    .file-input { display:none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>SRMS — Student Record Management (HTML/CSS/JS)</h1>
+        <div class="small-note">Frontend-only demo. Data stored in your browser.</div>
+      </div>
+
+      <div class="controls">
+        <div class="search card" style="padding:8px 10px;">
+          <input id="searchInput" type="text" placeholder="Search by roll / name / email..." />
+          <button class="btn ghost small" id="btnSearch">Search</button>
+          <button class="btn ghost small" id="btnClear">Clear</button>
+        </div>
+
+        <div class="right" style="display:flex; gap:8px;">
+          <label class="btn ghost small" title="Import CSV">
+            Import CSV
+            <input id="importCsv" class="file-input" type="file" accept=".csv" />
+          </label>
+          <button class="btn ghost small" id="btnExport">Export CSV</button>
+          <button class="btn small" id="btnNew">New Student</button>
+          <button class="btn small" id="btnLogout">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div id="message" class="muted" style="margin-bottom:8px;"></div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="muted">Showing <span id="count">0</span> students</div>
+          <div class="muted">Local storage key: <code>srms_students</code></div>
+        </div>
+
+        <table id="tblStudents" aria-describedby="count">
+          <thead>
+            <tr>
+              <th>Roll</th>
+              <th>Name</th>
+              <th>Class / Sec</th>
+              <th>Marks (avg)</th>
+              <th>Attendance %</th>
+              <th>Contact</th>
+              <th style="width:150px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <footer>
+        <div style="display:flex; gap:12px; margin-top:10px;">
+          <div class="small-note">Tip: use <strong>Export CSV</strong> to backup and <strong>Import CSV</strong> to restore.</div>
+          <div style="margin-left:auto;" class="small-note">You are currently: <span id="who">Not logged in</span></div>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Modal: add / edit -->
+  <div id="modal" class="modal-backdrop">
+    <div class="modal card" role="dialog" aria-modal="true">
+      <h3 id="modalTitle">New Student</h3>
+      <form id="studentForm">
+        <div class="grid-2">
+          <input id="inpRoll" type="text" placeholder="Roll Number *" required />
+          <input id="inpFirst" type="text" placeholder="First Name *" required />
+          <input id="inpLast" type="text" placeholder="Last Name" />
+          <input id="inpClass" type="text" placeholder="Class (e.g. 10)"/>
+          <input id="inpSection" type="text" placeholder="Section (e.g. A)" />
+          <input id="inpEmail" type="email" placeholder="Email" />
+          <input id="inpPhone" type="tel" placeholder="Phone" />
+          <input id="inpAttendance" type="text" placeholder="Attendance % (0 - 100)" />
+        </div>
+
+        <div style="margin-top:10px;">
+          <label class="small-note">Marks (subject:score). Add multiple separated by comma. Example: Maths:78,Physics:85</label>
+          <input id="inpMarks" type="text" placeholder="e.g. Maths:78,Physics:85" />
+        </div>
+
+        <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
+          <button type="button" class="btn ghost" id="btnCancelModal">Cancel</button>
+          <button class="btn" id="btnSave">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- login prompt -->
+  <div id="loginBackdrop" class="modal-backdrop" style="display:none;">
+    <div class="modal card">
+      <h3>Admin Login</h3>
+      <p class="muted">Enter the admin PIN to access SRMS. (Default PIN: <strong>1234</strong>)</p>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input id="adminPin" type="password" placeholder="Admin PIN" />
+        <button class="btn" id="btnLogin">Login</button>
+      </div>
+      <p class="small-note" style="margin-top:10px;">This is a demo client-side PIN. For production, use server-side authentication.</p>
+    </div>
+  </div>
+
+  <script>
+    /******************************
+     * SRMS — Vanilla JS (localStorage)
+     ******************************/
+    const LS_KEY = 'srms_students';
+    const LS_ADMIN = 'srms_admin_logged';
+    // default demo PIN (change as you like)
+    const DEFAULT_PIN = '1234';
+
+    // DOM
+    const tbody = document.getElementById('tbody');
+    const countSpan = document.getElementById('count');
+    const message = document.getElementById('message');
+    const tbl = document.getElementById('tblStudents');
+    const modal = document.getElementById('modal');
+    const loginBackdrop = document.getElementById('loginBackdrop');
+    const who = document.getElementById('who');
+
+    // form inputs
+    const inpRoll = document.getElementById('inpRoll');
+    const inpFirst = document.getElementById('inpFirst');
+    const inpLast = document.getElementById('inpLast');
+    const inpClass = document.getElementById('inpClass');
+    const inpSection = document.getElementById('inpSection');
+    const inpEmail = document.getElementById('inpEmail');
+    const inpPhone = document.getElementById('inpPhone');
+    const inpAttendance = document.getElementById('inpAttendance');
+    const inpMarks = document.getElementById('inpMarks');
+    const modalTitle = document.getElementById('modalTitle');
+
+    let students = [];
+    let editingId = null;
+
+    // utilities
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+    function loadStudents() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        students = raw ? JSON.parse(raw) : [];
+        // if empty, seed with sample 2 students
+        if (!raw || students.length === 0) {
+          students = [{
+            id: uid(),
+            rollNumber: 'R-101',
+            firstName: 'Anil',
+            lastName: 'Kumar',
+            class: '10',
+            section: 'A',
+            email: 'anil@example.com',
+            phone: '9000000001',
+            attendancePercent: 92,
+            marks: [{subject:'Maths',marks:88},{subject:'Science',marks:84}],
+            createdAt: Date.now()
+          },{
+            id: uid(),
+            rollNumber: 'R-102',
+            firstName: 'Sita',
+            lastName: 'Rao',
+            class: '10',
+            section: 'B',
+            email: 'sita@example.com',
+            phone: '9000000002',
+            attendancePercent: 87,
+            marks: [{subject:'Maths',marks:78},{subject:'Science',marks:90}],
+            createdAt: Date.now()
+          }];
+          saveStudents();
+        }
+      } catch(e) {
+        console.error('load error', e);
+        students = [];
+      }
+    }
+
+    function saveStudents() {
+      localStorage.setItem(LS_KEY, JSON.stringify(students));
+    }
+
+    function averageMarks(marksArr) {
+      if (!marksArr || marksArr.length===0) return '--';
+      const sum = marksArr.reduce((s,m) => s + (Number(m.marks)||0), 0);
+      return (sum / marksArr.length).toFixed(1);
+    }
+
+    function renderTable(list) {
+      tbody.innerHTML = '';
+      if (!list) list = students;
+      countSpan.textContent = list.length;
+      for (const s of list) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(s.rollNumber||'--')}</strong></td>
+          <td>${escapeHtml((s.firstName||'') + ' ' + (s.lastName||''))}</td>
+          <td>${escapeHtml((s.class||'') + ' / ' + (s.section||''))}</td>
+          <td>${averageMarks(s.marks)}</td>
+          <td>${s.attendancePercent ?? '--'}</td>
+          <td>
+            <div class="muted">${escapeHtml(s.email||'')}</div>
+            <div class="muted">${escapeHtml(s.phone||'')}</div>
+          </td>
+          <td>
+            <div class="actions">
+              <button data-id="${s.id}" class="btn ghost small btn-edit">Edit</button>
+              <button data-id="${s.id}" class="btn small btn-delete">Delete</button>
+              <button data-id="${s.id}" class="btn ghost small btn-view">View</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+      // attach events
+      document.querySelectorAll('.btn-edit').forEach(b => b.onclick = () => openEdit(b.dataset.id));
+      document.querySelectorAll('.btn-delete').forEach(b => b.onclick = () => doDelete(b.dataset.id));
+      document.querySelectorAll('.btn-view').forEach(b => b.onclick = () => viewRecord(b.dataset.id));
+    }
+
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+
+    // CRUD actions
+    function openNew() {
+      editingId = null;
+      modalTitle.textContent = 'New Student';
+      inpRoll.value = '';
+      inpFirst.value = '';
+      inpLast.value = '';
+      inpClass.value = '';
+      inpSection.value = '';
+      inpEmail.value = '';
+      inpPhone.value = '';
+      inpAttendance.value = '';
+      inpMarks.value = '';
+      showModal();
+    }
+
+    function openEdit(id) {
+      const s = students.find(x => x.id === id);
+      if (!s) return alert('Record not found');
+      editingId = id;
+      modalTitle.textContent = 'Edit Student';
+      inpRoll.value = s.rollNumber||'';
+      inpFirst.value = s.firstName||'';
+      inpLast.value = s.lastName||'';
+      inpClass.value = s.class||'';
+      inpSection.value = s.section||'';
+      inpEmail.value = s.email||'';
+      inpPhone.value = s.phone||'';
+      inpAttendance.value = s.attendancePercent ?? '';
+      inpMarks.value = (s.marks||[]).map(m => `${m.subject}:${m.marks}`).join(',');
+      showModal();
+    }
+
+    function doSave(e) {
+      e.preventDefault();
+      const roll = inpRoll.value.trim();
+      const first = inpFirst.value.trim();
+      if (!roll || !first) { alert('Roll number and first name are required'); return; }
+      // uniqueness check for roll
+      const existRoll = students.find(x => x.rollNumber === roll && x.id !== editingId);
+      if (existRoll) { alert('Roll number already exists'); return; }
+      const marksRaw = inpMarks.value.trim();
+      let marks = [];
+      if (marksRaw) {
+        marks = marksRaw.split(',').map(item => {
+          const [subject, score] = item.split(':').map(s => s && s.trim());
+          return { subject: subject || 'Unknown', marks: Number(score) || 0 };
+        }).filter(m => m.subject);
+      }
+
+      if (editingId) {
+        const idx = students.findIndex(x => x.id===editingId);
+        if (idx>=0) {
+          students[idx] = {
+            ...students[idx],
+            rollNumber: roll,
+            firstName: first,
+            lastName: inpLast.value.trim(),
+            class: inpClass.value.trim(),
+            section: inpSection.value.trim(),
+            email: inpEmail.value.trim(),
+            phone: inpPhone.value.trim(),
+            attendancePercent: inpAttendance.value ? Number(inpAttendance.value) : students[idx].attendancePercent,
+            marks,
+          };
+        }
+      } else {
+        const s = {
+          id: uid(),
+          rollNumber: roll,
+          firstName: first,
+          lastName: inpLast.value.trim(),
+          class: inpClass.value.trim(),
+          section: inpSection.value.trim(),
+          email: inpEmail.value.trim(),
+          phone: inpPhone.value.trim(),
+          attendancePercent: inpAttendance.value ? Number(inpAttendance.value) : undefined,
+          marks,
+          createdAt: Date.now()
+        };
+        students.unshift(s); // put newest on top
+      }
+      saveStudents();
+      hideModal();
+      renderTable(students);
+      showMessage('Saved successfully', 'success');
+    }
+
+    function doDelete(id) {
+      if (!confirm('Delete this student?')) return;
+      students = students.filter(s => s.id !== id);
+      saveStudents();
+      renderTable(students);
+      showMessage('Deleted', 'muted');
+    }
+
+    function viewRecord(id) {
+      const s = students.find(x => x.id===id);
+      if (!s) return;
+      const avg = averageMarks(s.marks);
+      const marksText = (s.marks||[]).map(m=>`${escapeHtml(m.subject)}: ${m.marks}`).join('\\n');
+      alert(`Roll: ${s.rollNumber}\\nName: ${s.firstName} ${s.lastName}\\nClass: ${s.class} / ${s.section}\\nAttendance: ${s.attendancePercent}\\nAvg marks: ${avg}\\n\\nMarks:\\n${marksText}\\n\\nContact: ${s.email} | ${s.phone}`);
+    }
+
+    // search
+    function doSearch() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      if (!q) { renderTable(students); return; }
+      const res = students.filter(s => {
+        return (s.rollNumber||'').toLowerCase().includes(q) ||
+               (s.firstName||'').toLowerCase().includes(q) ||
+               (s.lastName||'').toLowerCase().includes(q) ||
+               (s.email||'').toLowerCase().includes(q);
+      });
+      renderTable(res);
+    }
+
+    function doClear() {
+      document.getElementById('searchInput').value = '';
+      renderTable(students);
+    }
+
+    // CSV export/import
+    function exportCSV() {
+      if (!students.length) { alert('No data to export'); return; }
+      const header = ['id','rollNumber','firstName','lastName','class','section','email','phone','attendancePercent','marks_json','createdAt'];
+      const rows = students.map(s => {
+        return [
+          s.id,
+          wrapCsv(s.rollNumber),
+          wrapCsv(s.firstName),
+          wrapCsv(s.lastName),
+          wrapCsv(s.class),
+          wrapCsv(s.section),
+          wrapCsv(s.email),
+          wrapCsv(s.phone),
+          s.attendancePercent ?? '',
+          wrapCsv(JSON.stringify(s.marks || [])),
+          s.createdAt || ''
+        ].join(',');
+      });
+      const csv = [header.join(',')].concat(rows).join('\\n');
+      const blob = new Blob([csv], { type:'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'srms_export_' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function wrapCsv(v) {
+      if (v === null || v === undefined) return '';
+      const s = String(v).replace(/"/g, '""');
+      return '"' + s + '"';
+    }
+
+    function importCSVFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result;
+          const lines = text.split(/\\r?\\n/).filter(l => l.trim() !== '');
+          if (lines.length < 2) { alert('CSV looks empty'); return; }
+          const header = parseCsvLine(lines[0]);
+          const idxByName = {};
+          header.forEach((h,i) => idxByName[h.trim()] = i);
+          const newItems = [];
+          for (let i=1;i<lines.length;i++){
+            const cols = parseCsvLine(lines[i]);
+            if (!cols.length) continue;
+            const s = {
+              id: cols[idxByName['id']] || uid(),
+              rollNumber: cols[idxByName['rollNumber']] || '',
+              firstName: cols[idxByName['firstName']] || '',
+              lastName: cols[idxByName['lastName']] || '',
+              class: cols[idxByName['class']] || '',
+              section: cols[idxByName['section']] || '',
+              email: cols[idxByName['email']] || '',
+              phone: cols[idxByName['phone']] || '',
+              attendancePercent: cols[idxByName['attendancePercent']] ? Number(cols[idxByName['attendancePercent']]) : undefined,
+              marks: (() => {
+                try {
+                  const m = cols[idxByName['marks_json']];
+                  if (!m) return [];
+                  return JSON.parse(m);
+                } catch(err) { return []; }
+              })(),
+              createdAt: cols[idxByName['createdAt']] ? Number(cols[idxByName['createdAt']]) : Date.now()
+            };
+            newItems.push(s);
+          }
+          // merge: replace by rollNumber if exists, else push
+          for (const ni of newItems) {
+            const idx = students.findIndex(x => x.rollNumber === ni.rollNumber);
+            if (idx >= 0) students[idx] = ni;
+            else students.unshift(ni);
+          }
+          saveStudents();
+          renderTable(students);
+          showMessage('Imported CSV data', 'success');
+        } catch(err) {
+          console.error(err); alert('Import failed: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // very small CSV parser for lines with quoted fields
+    function parseCsvLine(line) {
+      const res = [];
+      let cur = '', inQuotes = false;
+      for (let i=0;i<line.length;i++){
+        const ch = line[i];
+        if (ch === '"' ) {
+          if (inQuotes && line[i+1] === '"') { cur += '"'; i++; continue; }
+          inQuotes = !inQuotes;
+          continue;
+        }
+        if (ch === ',' && !inQuotes) {
+          res.push(cur); cur=''; continue;
+        }
+        cur += ch;
+      }
+      res.push(cur);
+      return res;
+    }
+
+    // modal helpers
+    function showModal() { modal.style.display = 'flex'; }
+    function hideModal() { modal.style.display = 'none'; }
+
+    // simple message
+    function showMessage(text, type='muted') {
+      message.textContent = text;
+      message.style.color = type === 'success' ? 'green' : (type==='danger' ? 'crimson' : '');
+      setTimeout(()=> {
+        if (message.textContent === text) message.textContent = '';
+      }, 2500);
+    }
+
+    // delete all (dev) - not exposed in UI; useful for debugging
+    function clearAll() {
+      if (!confirm('Clear all student data from localStorage?')) return;
+      localStorage.removeItem(LS_KEY);
+      loadStudents();
+      renderTable(students);
+    }
+
+    // admin login (client-side)
+    function showLogin() {
+      loginBackdrop.style.display = 'flex';
+      document.getElementById('adminPin').value = '';
+    }
+    function hideLogin() { loginBackdrop.style.display = 'none'; }
+    function setLoggedIn(flag) {
+      localStorage.setItem(LS_ADMIN, flag ? '1' : '0');
+      renderAuth();
+    }
+    function renderAuth() {
+      const logged = localStorage.getItem(LS_ADMIN) === '1';
+      who.textContent = logged ? 'Admin (local demo)' : 'Not logged in';
+      document.getElementById('btnNew').disabled = !logged;
+      document.getElementById('btnExport').disabled = !logged;
+      document.getElementById('importCsv').disabled = !logged;
+      document.getElementById('btnLogout').style.display = logged ? 'inline-block' : 'none';
+      if (!logged) showLogin();
+      else hideLogin();
+    }
+
+    // basic helpers
+    document.getElementById('btnNew').onclick = () => openNew();
+    document.getElementById('btnCancelModal').onclick = hideModal;
+    document.getElementById('studentForm').onsubmit = doSave;
+    document.getElementById('btnSearch').onclick = doSearch;
+    document.getElementById('btnClear').onclick = doClear;
+    document.getElementById('btnExport').onclick = exportCSV;
+
+    // import CSV file input
+    document.getElementById('importCsv').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (f) {
+        importCSVFile(f);
+      }
+      e.target.value = '';
+    });
+
+    // login
+    document.getElementById('btnLogin').onclick = () => {
+      const pin = document.getElementById('adminPin').value.trim();
+      if (!pin) { alert('Enter PIN'); return; }
+      if (pin === DEFAULT_PIN) {
+        setLoggedIn(true);
+        showMessage('Logged in');
+      } else {
+        alert('Invalid PIN');
+      }
+    };
+
+    document.getElementById('btnLogout').onclick = () => {
+      setLoggedIn(false);
+      showMessage('Logged out');
+    };
+
+    // keyboard shortcuts (N new, / search)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'N' && (e.ctrlKey || e.metaKey)) { // ctrl/cmd + N
+        e.preventDefault(); openNew();
+      } else if (e.key === '/') {
+        e.preventDefault(); document.getElementById('searchInput').focus();
+      }
+    });
+
+    // clear search on pressing Enter in search
+    document.getElementById('searchInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doSearch();
+    });
+
+    // simple CSV import via paste (optional)
+    // initialize
+    (function init(){
+      loadStudents();
+      renderTable(students);
+      // if admin flag not set, show login
+      if (localStorage.getItem(LS_ADMIN) !== '1') {
+        setTimeout(() => showLogin(), 200);
+      } else {
+        renderAuth();
+      }
+    })();
+
+  </script>
+</body>
+</html>
