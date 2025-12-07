@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login — SRMS Style</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- LOGIN MODAL STYLE PAGE -->
+<div id="loginBackdrop" class="modal-backdrop">
+    <div class="modal card">
+        <h3>Admin Login</h3>
+        <p class="muted">Enter the admin PIN to access SRMS.<br>
+            (Default PIN: <strong>1234</strong>)</p>
+
+        <div class="login-box">
+            <input id="adminPin" type="password" placeholder="Admin PIN">
+            <button id="btnLogin" class="btn">Login</button>
+        </div>
+
+        <p class="small-note" style="margin-top:10px;">
+            This login is for demo only. No server authentication.
+        </p>
+
+        <p id="message" class="msg"></p>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
