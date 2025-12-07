@@ -1,0 +1,89 @@
+/* GLOBAL THEME COLORS */
+:root {
+  --bg: #f6f8fb;
+  --card: #ffffff;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --danger: #dc2626;
+  --success: #16a34a;
+  font-family: Inter, system-ui, -apple-system, Arial;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* card */
+.card {
+  background: var(--card);
+  padding: 25px;
+  border-radius: 12px;
+  width: 330px;
+  box-shadow: 0 10px 40px rgba(2,6,23,0.3);
+  text-align: center;
+}
+
+h3 {
+  margin: 0 0 5px 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.login-box {
+  margin-top: 15px;
+  display: flex;
+  gap: 8px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #dce3ef;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.btn {
+  padding: 10px 15px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn:hover {
+  background: #1d4ed8;
+}
+
+.small-note {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* message */
+.msg {
+  margin-top: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  height: 20px;
+}
